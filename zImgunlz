@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+
+XZ_PATTERN=$'\xfd\x37\x7a\x58\x5a\x00'
+LZMA_PATTERN=$'\x5d....\xff\xff\xff\xff\xff'
+
+find_xz_offset () {
+# The actual data seems to be the second one
+# The first one might be the string in decompressor
+    pos=( $(LC_ALL=C grep -a --byte-offset -m 2 --only-matching -e "$XZ_PATTERN" -- "$1"  ) )
+    echo "${pos[1]%%:*}"
+}
+
+find_lzma_offset () {
+    pos=$(LC_ALL=C grep -a --byte-offset -m 1 --only-matching -e "$LZMA_PATTERN" -- "$1" )
+    echo "${pos%%:*}"
+}
+
+if [ -z "$1" ]; then
+echo "No zImage (boot.img) specified."
+exit;
+fi
+
+tmpdir=$(mktemp -d)
+zimg_file="$1"
+
+{
+ zimg_xz_offset=$(find_xz_offset "$zimg_file" )
+ piggy_file="$tmpdir/pigg.xz"
+ dd if="$zimg_file" bs="$zimg_xz_offset" skip=1 | xz -d > "$piggy_file" 
+
+ ramdisk_cpio_offset=$(find_lzma_offset "$piggy_file" )
+ ramdisk_file="$tmpdir/ramdisk.cpio"
+ dd if="$piggy_file" bs="$ramdisk_cpio_offset" skip=1 | xz -d > "$ramdisk_file" 
+} &> /dev/null
+
+if [ -e "$ramdisk_file" ];then
+rm "$piggy_file"
+echo "ramdisk.cpio should be written to ${ramdisk_file}"
+else
+echo "error: unrecongized zImage format"
+fi;
