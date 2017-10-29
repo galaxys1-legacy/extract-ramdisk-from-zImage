@@ -29,13 +29,13 @@ zimg_file="$1"
  dd if="$zimg_file" bs="$zimg_xz_offset" skip=1 | xz -d > "$piggy_file" 
 
  ramdisk_cpio_offset=$(find_lzma_offset "$piggy_file" )
- ramdisk_file="$tmpdir/ramdisk.cpio"
+ ramdisk_file="$tmpdir/ramdisk.stage1.cpio"
  dd if="$piggy_file" bs="$ramdisk_cpio_offset" skip=1 | xz -d > "$ramdisk_file" 
 } &> /dev/null
 
 if [ -e "$ramdisk_file" ];then
 rm "$piggy_file"
-echo "ramdisk.cpio should be written to ${ramdisk_file}"
+echo "ramdisk.stage1.cpio should be written to ${ramdisk_file}"
 else
 echo "error: unrecongized zImage format"
 fi;
